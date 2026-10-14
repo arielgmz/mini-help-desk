@@ -1,7 +1,7 @@
 name: deploy-api
 
-# Compila y prueba el backend en GitHub Actions y sube el resultado publicado a MonsterASP.NET por FTP.
-# MonsterASP.NET no compila .NET: solo recibe los archivos ya publicados.
+# Compila y prueba el backend en GitHub Actions y lo despliega en MonsterASP.NET con Web Deploy (puerto 8172),
+# siguiendo su guía oficial. MonsterASP.NET no compila .NET: solo recibe la carpeta ya publicada.
 on:
   push:
     branches: [main]
@@ -29,7 +29,8 @@ jobs:
 
   deploy:
     needs: test
-    runs-on: ubuntu-latest
+    # La acción de Web Deploy usa msdeploy.exe: requiere un runner Windows.
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -37,19 +38,50 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      # win-x86 es el runtime que usa la guía de MonsterASP.NET para su plataforma de hosting.
       - name: Publicar API
-        run: dotnet publish backend/src/PuntoReclamo.Api -c Release -o publish
+        run: dotnet publish backend/src/PuntoReclamo.Api -c Release -o publish --runtime win-x86 --self-contained false
 
-      # La configuración real (cadena de conexión, clave admin, CORS) NO va en el repo:
-      # se define en MonsterASP.NET (variables de entorno o appsettings.Production.json en el servidor).
-      - name: Subir a MonsterASP.NET
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      # Web Deploy sincroniza la carpeta y puede borrar archivos que solo existan en el servidor, así que la
+      # configuración de producción se genera aquí desde GitHub Secrets (nunca vive en el repositorio).
+      - name: Generar appsettings.Production.json
+        shell: pwsh
+        env:
+          PROD_DB_CONNECTION: ${{ secrets.PROD_DB_CONNECTION }}
+          PROD_ADMIN_API_KEY: ${{ secrets.PROD_ADMIN_API_KEY }}
+          PROD_ADMIN_USERNAME: ${{ secrets.PROD_ADMIN_USERNAME }}
+          PROD_ADMIN_PASSWORD: ${{ secrets.PROD_ADMIN_PASSWORD }}
+          PROD_JWT_SIGNING_KEY: ${{ secrets.PROD_JWT_SIGNING_KEY }}
+          PROD_CORS_ORIGIN: ${{ secrets.PROD_CORS_ORIGIN }}
+        run: |
+          $required = 'PROD_DB_CONNECTION','PROD_ADMIN_API_KEY','PROD_ADMIN_USERNAME','PROD_ADMIN_PASSWORD','PROD_JWT_SIGNING_KEY','PROD_CORS_ORIGIN'
+          $missing = $required | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) }
+          if ($missing) {
+            Write-Error "Faltan secrets en GitHub (Settings > Secrets and variables > Actions): $($missing -join ', ')"
+            exit 1
+          }
+          if ($env:PROD_JWT_SIGNING_KEY.Length -lt 32) {
+            Write-Error 'PROD_JWT_SIGNING_KEY debe tener al menos 32 caracteres.'
+            exit 1
+          }
+
+          $config = [ordered]@{
+            ConnectionStrings = @{ DefaultConnection = $env:PROD_DB_CONNECTION }
+            Admin = [ordered]@{
+              ApiKey   = $env:PROD_ADMIN_API_KEY
+              Username = $env:PROD_ADMIN_USERNAME
+              Password = $env:PROD_ADMIN_PASSWORD
+            }
+            Jwt  = @{ SigningKey = $env:PROD_JWT_SIGNING_KEY }
+            Cors = @{ AllowedOrigins = @($env:PROD_CORS_ORIGIN) }
+          }
+          $config | ConvertTo-Json -Depth 5 | Set-Content -Path publish/appsettings.Production.json -Encoding utf8
+          Write-Host 'appsettings.Production.json generado (valores omitidos).'
+
+      - name: Desplegar en MonsterASP.NET (Web Deploy)
+        uses: rasmusbuchholdt/simply-web-deploy@2.1.0
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps # si la conexión es rechazada, pruebe "ftp"
-          local-dir: publish/
-          server-dir: /wwwroot/
-          exclude: |
-            **/appsettings.Production.json
+          website-name: ${{ secrets.WEBSITE_NAME }}
+          server-computer-name: ${{ secrets.SERVER_COMPUTER_NAME }}
+          server-username: ${{ secrets.SERVER_USERNAME }}
+          server-password: ${{ secrets.SERVER_PASSWORD }}
