@@ -480,3 +480,10 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Configuración con secretos de producción: nunca al repositorio
+appsettings.Production.json
+appsettings.*.local.json
+*.publishSettings
+.env
+.env.local
