@@ -12,7 +12,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: "Server=${REMOTE_DB_HOST:-db73455.public.databaseasp.net},1433;Database=${REMOTE_DB_NAME:-db73455};User Id=${REMOTE_DB_USER:-db73455};Password=${REMOTE_DB_PASSWORD:?Defina REMOTE_DB_PASSWORD};Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True"
-      Admin__ApiKey: ${ADMIN_API_KEY:-admin-secret-key-2026}
+      Admin__ApiKey: ${ADMIN_API_KEY:?Defina ADMIN_API_KEY}
+      Admin__Username: ${ADMIN_USERNAME:?Defina ADMIN_USERNAME}
+      Admin__Password: ${ADMIN_PASSWORD:?Defina ADMIN_PASSWORD}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?Defina JWT_SIGNING_KEY (mín. 32 caracteres)}
       Cors__AllowedOrigins__0: http://localhost:3000
       Database__ApplyMigrationsOnStartup: "true"
       Database__Seed: "true"

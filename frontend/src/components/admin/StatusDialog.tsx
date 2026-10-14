@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, adminChangeStatus } from "@/lib/api";
@@ -13,14 +13,14 @@ import { Alert, Button, Field, StatusBadge, inputClass } from "../ui";
 
 interface Props {
   claim: AdminClaim | null;
-  apiKey: string;
+  token: string;
   onClose: () => void;
   onUpdated: (claim: AdminClaim) => void;
   onUnauthorized: () => void;
 }
 
 /** Diálogo nativo <dialog>: trae trampa de foco, cierre con Esc y backdrop sin dependencias. */
-export function StatusDialog({ claim, apiKey, onClose, onUpdated, onUnauthorized }: Props) {
+export function StatusDialog({ claim, token, onClose, onUpdated, onUnauthorized }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -35,14 +35,15 @@ export function StatusDialog({ claim, apiKey, onClose, onUpdated, onUnauthorized
       ref={ref}
       onClose={onClose}
       aria-labelledby="dialogo-titulo"
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl p-0 shadow-xl backdrop:bg-slate-900/50"
+      // `open:flex`: un `flex` incondicional anularía el display:none del <dialog> cerrado.
+      className="m-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-2rem)] max-w-lg flex-col overflow-hidden rounded-2xl p-0 shadow-xl backdrop:bg-slate-900/50 open:flex"
     >
       {/* key: reinicia el formulario al abrir otro reclamo */}
       {claim && (
         <DialogBody
           key={claim.folio}
           claim={claim}
-          apiKey={apiKey}
+          token={token}
           onClose={onClose}
           onUpdated={onUpdated}
           onUnauthorized={onUnauthorized}
@@ -54,7 +55,7 @@ export function StatusDialog({ claim, apiKey, onClose, onUpdated, onUnauthorized
 
 function DialogBody({
   claim,
-  apiKey,
+  token,
   onClose,
   onUpdated,
   onUnauthorized,
@@ -83,7 +84,7 @@ function DialogBody({
     setError(null);
     setCommentError(undefined);
     try {
-      const updated = await adminChangeStatus(apiKey, claim.folio, {
+      const updated = await adminChangeStatus(token, claim.folio, {
         status: target,
         comment: comment.trim() || null,
       });
@@ -103,7 +104,9 @@ function DialogBody({
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="p-6">
+    <form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
+      {/* El contenido hace scroll; los botones quedan siempre visibles (pantallas bajas / apaisado). */}
+      <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
       <h2 id="dialogo-titulo" className="text-lg font-bold text-slate-900">
         Cambiar estado
       </h2>
@@ -169,8 +172,9 @@ function DialogBody({
           </Field>
         </div>
       )}
+      </div>
 
-      <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+      <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-slate-200 bg-white px-5 py-4 min-[420px]:flex-row min-[420px]:justify-end sm:px-6">
         <Button variant="secondary" onClick={onClose} disabled={submitting}>
           {options.length === 0 ? "Cerrar" : "Cancelar"}
         </Button>

@@ -1,5 +1,7 @@
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Microsoft.OpenApi;
+using PuntoReclamo.Api.Controllers;
 using PuntoReclamo.Api.Middleware;
 using PuntoReclamo.Api.Security;
 using PuntoReclamo.Application;
@@ -18,12 +20,25 @@ builder.Services
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddAdminAuthentication(builder.Configuration);
 
-builder.Services
-    .AddOptions<ApiKeyOptions>()
-    .Bind(builder.Configuration.GetSection(ApiKeyOptions.SectionName))
-    .Validate(o => !string.IsNullOrWhiteSpace(o.ApiKey), "Falta configurar 'Admin:ApiKey'.")
-    .ValidateOnStart();
+// Freno a la fuerza bruta sobre el login: 10 intentos por minuto por IP.
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy(RateLimitPolicies.Login, context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+
+    options.OnRejected = (context, _) =>
+        new ValueTask(ProblemResponses.TooManyRequestsAsync(
+            context.HttpContext, "Demasiados intentos de inicio de sesión. Espere un minuto e intente de nuevo."));
+});
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? ["http://localhost:3000"];
@@ -39,7 +54,16 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "Mini Punto de Reclamo API",
         Version = "v1",
-        Description = "Registro y seguimiento de reclamos. Los endpoints /api/admin requieren el header X-Api-Key."
+        Description = "Registro y seguimiento de reclamos. Los endpoints /api/admin aceptan un JWT " +
+                      "(POST /api/auth/login) o el header X-Api-Key."
+    });
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Token obtenido en POST /api/auth/login (pegue solo el token, sin 'Bearer ')."
     });
 
     options.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
@@ -47,9 +71,14 @@ builder.Services.AddSwaggerGen(options =>
         Type = SecuritySchemeType.ApiKey,
         In = ParameterLocation.Header,
         Name = ApiKeyOptions.HeaderName,
-        Description = "Clave de administración. Ejemplo de desarrollo: admin-secret-key-2026"
+        Description = "Clave de administración configurada en el servidor."
     });
 
+    // Dos requisitos separados = alternativas: basta con uno de los dos.
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+    });
     options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
     {
         [new OpenApiSecuritySchemeReference("ApiKey", document)] = []
@@ -67,6 +96,9 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger
 }
 
 app.UseCors("Frontend");
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" })).ExcludeFromDescription();
 app.MapControllers();

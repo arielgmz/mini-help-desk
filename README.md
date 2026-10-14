@@ -1,4 +1,4 @@
-# Mini Punto de Reclamo
+﻿# Mini Punto de Reclamo
 
 Registro y seguimiento de reclamos para una entidad financiera. Los clientes registran un reclamo y consultan su estado con folio + email; el personal administra los reclamos desde un panel protegido por API key.
 
@@ -66,16 +66,27 @@ La API aplica las migraciones y carga los datos semilla al arrancar (reintenta h
    ```
    Abra http://localhost:3000.
 
-## Clave de administración
+## Acceso de administración
 
-Panel `/admin` y endpoints `/api/admin/*` (header `X-Api-Key`):
+Los endpoints `/api/admin/*` aceptan **cualquiera** de estas dos credenciales:
+
+| Método | Cómo | Uso |
+|---|---|---|
+| **JWT** (plus) | `POST /api/auth/login` con usuario y contraseña → `Authorization: Bearer <token>` | Panel web `/admin` |
+| **API key** (requisito base) | Header `X-Api-Key: <clave>` | curl, Swagger, integraciones |
+
+Credenciales de **demostración local** (docker compose / `dotnet run` en Development):
 
 ```
-admin-secret-key-2026
+Usuario:    admin
+Contraseña: admin-pass-2026
+X-Api-Key:  admin-secret-key-2026
 ```
 
-Se configura con `Admin:ApiKey` (appsettings) o la variable de entorno `Admin__ApiKey` (en compose: `ADMIN_API_KEY`). En Swagger use el botón **Authorize**.
-
+- El panel **no pide la API key**: inicia sesión, recibe un JWT (60 min por defecto) y lo envía como `Bearer`. Al expirar, vuelve al login automáticamente.
+- Usuario, contraseña, clave y secreto de firma se leen **solo de configuración** (`Admin:*`, `Jwt:SigningKey`, o variables de entorno). No hay valores por defecto en `appsettings.json` para el secreto JWT: en cualquier entorno distinto de Development la API **no arranca** si faltan, o si el secreto tiene menos de 32 caracteres.
+- El login tiene límite de intentos (10 por minuto por IP → 429) y responde igual ante usuario inexistente o contraseña errónea.
+- En Swagger use **Authorize**: pegue el token de `/api/auth/login` (esquema *Bearer*) o la clave (esquema *ApiKey*).
 ## Datos semilla
 
 Si la tabla está vacía, la API crea 7 reclamos (fechas relativas al momento del arranque):
@@ -96,10 +107,11 @@ Si la tabla está vacía, la API crea 7 reclamos (fechas relativas al momento de
 
 | Método | Ruta | Acceso | Respuestas |
 |---|---|---|---|
+| POST | `/api/auth/login` | Público (limitado) | 200, 401, 422, 429 |
 | POST | `/api/claims` | Público | 201, 422 |
 | GET | `/api/claims/{folio}?email=` | Público | 200, 404 |
-| GET | `/api/admin/claims?status=&page=&pageSize=` | `X-Api-Key` | 200, 401, 422 |
-| PATCH | `/api/admin/claims/{folio}/status` | `X-Api-Key` | 200, 401, 404, 409, 422 |
+| GET | `/api/admin/claims?status=&page=&pageSize=` | JWT o `X-Api-Key` | 200, 401, 422 |
+| PATCH | `/api/admin/claims/{folio}/status` | JWT o `X-Api-Key` | 200, 401, 404, 409, 422 |
 | GET | `/health` | Público | 200 |
 
 Todos los errores usan **ProblemDetails (RFC 7807)**; los de validación incluyen `errors` por campo en camelCase.
@@ -110,8 +122,11 @@ Todos los errores usan **ProblemDetails (RFC 7807)**; los de validación incluye
 dotnet test backend/PuntoReclamo.sln
 ```
 
-59 pruebas: calculadora de días hábiles (lunes, miércoles, viernes, sábado, domingo), máquina de estados (transiciones válidas/ inválidas, comentario obligatorio), formato y correlatividad del folio, y reglas de servicio (anti-enumeración, vencimiento, paginación).
+71 pruebas: calculadora de días hábiles (lunes, miércoles, viernes, sábado, domingo), máquina de estados (transiciones válidas/ inválidas, comentario obligatorio), formato y correlatividad del folio, reglas de servicio (anti-enumeración, vencimiento, paginación) y seguridad (emisión/validación de JWT, firma ajena, expirado, manipulado).
 
+## Diseño responsivo
+
+Verificado con una auditoría automatizada en 17 tamaños (320×568 hasta 2560×1440, incluidos apaisados 667×375 y 844×390): sin scroll horizontal, campos a 16 px en móvil (evita el zoom de iOS), objetivos táctiles ≥ 40 px, y el panel admin pasa de **tarjetas (< 1024 px)** a **tabla (≥ 1024 px)** para que la acción *Cambiar estado* nunca quede fuera de pantalla. El diálogo de cambio de estado mantiene sus botones fijos y hace scroll interno en pantallas bajas.
 ## Supuestos de negocio
 
 - **Feriados excluidos del alcance**: los 5 días hábiles descartan solo sábados y domingos.
@@ -134,7 +149,8 @@ dotnet test backend/PuntoReclamo.sln
 ### Qué se simplificó y qué se mejoraría con más horas
 
 Simplificado por tiempo:
-- Autenticación admin con una API key estática (sin usuarios, roles ni expiración); el historial no registra **quién** hizo el cambio.
+- Un único usuario administrador definido por configuración (sin tabla de usuarios, roles ni hash de contraseña con sal); el JWT no tiene *refresh token* ni revocación; el historial no registra **quién** hizo el cambio.
+- El JWT se guarda en `sessionStorage`: simple, pero expuesto a XSS. Lo correcto sería una cookie `HttpOnly` emitida por el servidor de Next (BFF).
 - Sin feriados (calendario configurable).
 - Sin rate limiting en la consulta pública ni protección anti-bots en el formulario.
 - Sin pruebas de integración de la API ni E2E dentro del repo (se verificaron manualmente con scripts descartables: curl/Playwright).
@@ -142,7 +158,7 @@ Simplificado por tiempo:
 - Secretos de desarrollo en `appsettings.json`/compose.
 
 Con más horas:
-- JWT/OIDC con roles y registro del actor en `ClaimStatusHistory`; rotación de claves.
+- Usuarios en base de datos con hash (Argon2/PBKDF2), roles, OIDC, *refresh tokens* y registro del actor en `ClaimStatusHistory`; rotación de claves.
 - Rate limiting por IP real (requiere propagar `X-Forwarded-For` desde el servidor de Next) y CAPTCHA.
 - Pruebas de integración con `WebApplicationFactory` + Testcontainers y E2E Playwright en CI.
 - Idempotency-Key en `POST /api/claims` para evitar duplicados por reintentos de red.
@@ -161,7 +177,10 @@ Con más horas:
 | Variable | Dónde | Descripción | Predeterminado |
 |---|---|---|---|
 | `ConnectionStrings__DefaultConnection` | API | Cadena de conexión SQL Server | `localhost,1433` |
-| `Admin__ApiKey` | API | Clave del panel admin | `admin-secret-key-2026` |
+| `Admin__ApiKey` | API | Clave del header `X-Api-Key` | `admin-secret-key-2026` |
+| `Admin__Username` / `Admin__Password` | API | Credenciales del panel (login → JWT) | solo Development / compose |
+| `Jwt__SigningKey` | API | Secreto HMAC del JWT (mín. 32 caracteres) | **sin valor por defecto** fuera de Development |
+| `Jwt__ExpiryMinutes` | API | Vigencia del token | `60` |
 | `Cors__AllowedOrigins__0` | API | Origen permitido del frontend | `http://localhost:3000` |
 | `Database__ApplyMigrationsOnStartup` | API | Migrar al iniciar | `true` |
 | `Database__Seed` | API | Cargar datos semilla si está vacío | `true` |

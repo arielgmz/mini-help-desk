@@ -3,6 +3,7 @@ import type {
   ClaimStatus,
   CreateClaimPayload,
   CreateClaimResponse,
+  LoginResponse,
   Paged,
 } from "./types";
 
@@ -39,7 +40,7 @@ export function toApiError(status: number, problem: ProblemDetails | null): ApiE
   );
 }
 
-async function request<T>(path: string, init: RequestInit = {}, apiKey?: string): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}, bearerToken?: string): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}`, {
@@ -47,7 +48,7 @@ async function request<T>(path: string, init: RequestInit = {}, apiKey?: string)
       headers: {
         Accept: "application/json",
         ...(init.body ? { "Content-Type": "application/json" } : {}),
-        ...(apiKey ? { "X-Api-Key": apiKey } : {}),
+        ...(bearerToken ? { Authorization: `Bearer ${bearerToken}` } : {}),
         ...init.headers,
       },
     });
@@ -65,25 +66,32 @@ async function request<T>(path: string, init: RequestInit = {}, apiKey?: string)
 export const createClaim = (payload: CreateClaimPayload) =>
   request<CreateClaimResponse>("/api/claims", { method: "POST", body: JSON.stringify(payload) });
 
+/** Inicia sesión como administrador y obtiene un JWT. */
+export const login = (username: string, password: string) =>
+  request<LoginResponse>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ username, password }),
+  });
+
 export interface AdminListParams {
   status: ClaimStatus | "";
   page: number;
   pageSize: number;
 }
 
-export const adminListClaims = (apiKey: string, { status, page, pageSize }: AdminListParams) => {
+export const adminListClaims = (token: string, { status, page, pageSize }: AdminListParams) => {
   const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (status) query.set("status", status);
-  return request<Paged<AdminClaim>>(`/api/admin/claims?${query}`, { cache: "no-store" }, apiKey);
+  return request<Paged<AdminClaim>>(`/api/admin/claims?${query}`, { cache: "no-store" }, token);
 };
 
 export const adminChangeStatus = (
-  apiKey: string,
+  token: string,
   folio: string,
   body: { status: ClaimStatus; comment: string | null },
 ) =>
   request<AdminClaim>(
     `/api/admin/claims/${encodeURIComponent(folio)}/status`,
     { method: "PATCH", body: JSON.stringify(body) },
-    apiKey,
+    token,
   );

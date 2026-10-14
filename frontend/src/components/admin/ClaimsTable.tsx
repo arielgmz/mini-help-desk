@@ -1,4 +1,4 @@
-import { formatCompact } from "@/lib/format";
+﻿import { formatCompact } from "@/lib/format";
 import { NEXT_STATUSES, TYPE_LABEL, type AdminClaim } from "@/lib/types";
 import { Button, OverdueBadge, Skeleton, StatusBadge, cn } from "../ui";
 
@@ -24,8 +24,8 @@ export function ClaimsTable({ claims, loading, onChangeStatus }: Props) {
 
   return (
     <>
-      {/* Escritorio */}
-      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm md:block">
+      {/* Escritorio (>= 1024 px): con 7 columnas, por debajo la acción quedaría fuera de pantalla */}
+      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm lg:block">
         <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
           <caption className="sr-only">Listado de reclamos</caption>
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
@@ -66,7 +66,7 @@ export function ClaimsTable({ claims, loading, onChangeStatus }: Props) {
       </div>
 
       {/* Móvil */}
-      <ul className="space-y-3 md:hidden">
+      <ul className="space-y-3 lg:hidden">
         {claims.map((c) => (
           <li
             key={c.folio}

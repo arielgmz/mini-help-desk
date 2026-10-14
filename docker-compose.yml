@@ -28,6 +28,10 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=PuntoReclamo;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Pr0ntoReclamo2026!};TrustServerCertificate=True;Encrypt=False"
       Admin__ApiKey: ${ADMIN_API_KEY:-admin-secret-key-2026}
+      # Inicio de sesión del panel y firma del JWT. Los valores por defecto son SOLO de demostración local.
+      Admin__Username: ${ADMIN_USERNAME:-admin}
+      Admin__Password: ${ADMIN_PASSWORD:-admin-pass-2026}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-demo-local-signing-key-cambiar-0123456789abcdef}
       Cors__AllowedOrigins__0: http://localhost:3000
       Database__ApplyMigrationsOnStartup: "true"
       Database__Seed: "true"

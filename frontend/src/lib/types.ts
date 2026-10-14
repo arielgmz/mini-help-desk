@@ -78,6 +78,13 @@ export interface AdminClaim {
   isOverdue: boolean;
 }
 
+export interface LoginResponse {
+  accessToken: string;
+  tokenType: string;
+  expiresAt: string;
+  username: string;
+}
+
 export interface Paged<T> {
   items: T[];
   page: number;

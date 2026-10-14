@@ -1,8 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
-import { ApiError, adminListClaims } from "@/lib/api";
-import { adminSession } from "@/lib/session";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+} from "react";
+import { ApiError, adminListClaims, login } from "@/lib/api";
+import { adminSession, parseSession, type AdminSession } from "@/lib/session";
 import {
   CLAIM_STATUSES,
   STATUS_LABEL,
@@ -22,105 +30,148 @@ const noopSubscribe = () => () => {};
 export function AdminApp() {
   // false en el servidor y true en el cliente: evita parpadeo del login antes de leer la sesión.
   const isClient = useSyncExternalStore(noopSubscribe, () => true, () => false);
-  const apiKey = useSyncExternalStore(adminSession.subscribe, adminSession.get, () => null);
+  const raw = useSyncExternalStore(adminSession.subscribe, adminSession.getRaw, () => null);
+  const session = useMemo(() => parseSession(raw), [raw]);
   const [notice, setNotice] = useState<string | null>(null);
 
-  if (!isClient) return <Skeleton className="mx-auto h-64 max-w-md" />;
+  const handleSessionEnded = useCallback((message: string) => {
+    setNotice(message);
+    adminSession.clear();
+  }, []);
 
-  if (!apiKey) {
+  if (!isClient) return <Skeleton className="mx-auto h-72 max-w-md" />;
+
+  if (!session) {
     return <LoginForm notice={notice} onLoggedIn={() => setNotice(null)} />;
   }
 
   return (
     <Dashboard
-      apiKey={apiKey}
-      onLogout={() => adminSession.clear()}
-      onUnauthorized={() => {
-        setNotice("Su sesión no es válida. Ingrese la clave nuevamente.");
+      session={session}
+      onLogout={() => {
+        setNotice(null);
         adminSession.clear();
       }}
+      onSessionEnded={handleSessionEnded}
     />
   );
 }
 
 function LoginForm({ notice, onLoggedIn }: { notice: string | null; onLoggedIn: () => void }) {
-  const [key, setKey] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ username?: string; password?: string }>({});
   const [error, setError] = useState<string | null>(null);
-  const [checking, setChecking] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const inFlight = useRef(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (checking) return;
-    const value = key.trim();
-    if (!value) {
-      setError("Ingrese la clave de administración.");
-      return;
-    }
+    if (inFlight.current) return;
 
-    setChecking(true);
+    const errors: typeof fieldErrors = {};
+    if (!username.trim()) errors.username = "Ingrese su usuario.";
+    if (!password) errors.password = "Ingrese su contraseña.";
+    setFieldErrors(errors);
     setError(null);
+    if (errors.username || errors.password) return;
+
+    inFlight.current = true;
+    setSubmitting(true);
     try {
-      // Valida la clave contra un endpoint protegido antes de guardarla.
-      await adminListClaims(value, { status: "", page: 1, pageSize: 1 });
-      adminSession.set(value);
+      const result = await login(username.trim(), password);
+      adminSession.set({
+        token: result.accessToken,
+        expiresAt: result.expiresAt,
+        username: result.username,
+      });
       onLoggedIn();
     } catch (e) {
-      setError(
-        e instanceof ApiError && e.status === 401
-          ? "La clave de administración no es válida."
-          : e instanceof Error
-            ? e.message
-            : "Ocurrió un error inesperado.",
-      );
+      if (e instanceof ApiError && e.status === 401) {
+        setError("Usuario o contraseña incorrectos.");
+      } else if (e instanceof ApiError && e.status === 429) {
+        setError("Demasiados intentos. Espere un minuto e intente de nuevo.");
+      } else if (e instanceof ApiError && Object.keys(e.fieldErrors).length > 0) {
+        setFieldErrors({ username: e.fieldErrors.username, password: e.fieldErrors.password });
+      } else {
+        setError(e instanceof Error ? e.message : "Ocurrió un error inesperado.");
+      }
+      setPassword("");
     } finally {
-      setChecking(false);
+      inFlight.current = false;
+      setSubmitting(false);
     }
   }
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="mx-auto w-full max-w-md">
       <form
         onSubmit={handleSubmit}
         noValidate
-        className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+        className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+        aria-busy={submitting}
       >
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Acceso administrativo</h1>
-          <p className="mt-1 text-sm text-slate-600">Ingrese la clave de API para gestionar los reclamos.</p>
+          <p className="mt-1 text-sm text-slate-600">Inicie sesión para gestionar los reclamos.</p>
         </div>
         {notice && <Alert tone="info">{notice}</Alert>}
-        <Field id="apikey" label="Clave de administración (X-Api-Key)" error={error ?? undefined}>
+        {error && <Alert title="No se pudo iniciar sesión">{error}</Alert>}
+
+        <Field id="username" label="Usuario" error={fieldErrors.username}>
           {(aria) => (
             <input
               {...aria}
-              id="apikey"
-              type="password"
-              autoComplete="off"
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              disabled={checking}
+              id="username"
+              name="username"
+              type="text"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              disabled={submitting}
               className={inputClass(aria["aria-invalid"])}
             />
           )}
         </Field>
-        <Button type="submit" loading={checking} className="w-full">
-          {checking ? "Verificando…" : "Ingresar"}
+        <Field id="password" label="Contraseña" error={fieldErrors.password}>
+          {(aria) => (
+            <input
+              {...aria}
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={submitting}
+              className={inputClass(aria["aria-invalid"])}
+            />
+          )}
+        </Field>
+
+        <Button type="submit" loading={submitting} className="w-full">
+          {submitting ? "Ingresando…" : "Iniciar sesión"}
         </Button>
-        <p className="text-xs text-slate-500">La clave se guarda solo en esta pestaña y se descarta al cerrarla.</p>
+        <p className="text-xs text-slate-500">
+          La sesión se guarda solo en esta pestaña y expira automáticamente.
+        </p>
       </form>
     </div>
   );
 }
 
 function Dashboard({
-  apiKey,
+  session,
   onLogout,
-  onUnauthorized,
+  onSessionEnded,
 }: {
-  apiKey: string;
+  session: AdminSession;
   onLogout: () => void;
-  onUnauthorized: () => void;
+  onSessionEnded: (message: string) => void;
 }) {
+  const { token, expiresAt, username } = session;
   const [status, setStatus] = useState<ClaimStatus | "">("");
   const [page, setPage] = useState(1);
   const [data, setData] = useState<Paged<AdminClaim> | null>(null);
@@ -130,19 +181,31 @@ function Dashboard({
   const [flash, setFlash] = useState<string | null>(null);
   const requestId = useRef(0);
 
+  const handleUnauthorized = useCallback(
+    () => onSessionEnded("Su sesión expiró o no es válida. Inicie sesión nuevamente."),
+    [onSessionEnded],
+  );
+
+  // Cierra la sesión justo cuando el JWT expira, sin esperar a que falle una petición.
+  useEffect(() => {
+    const remaining = new Date(expiresAt).getTime() - Date.now();
+    const timer = setTimeout(handleUnauthorized, Math.max(remaining, 0));
+    return () => clearTimeout(timer);
+  }, [expiresAt, handleUnauthorized]);
+
   const load = useCallback(
     // `loading` lo activan los manejadores de eventos (filtro, página, "Actualizar"); aquí solo se apaga.
     async (silent: boolean) => {
       const id = ++requestId.current;
       try {
-        const result = await adminListClaims(apiKey, { status, page, pageSize: PAGE_SIZE });
+        const result = await adminListClaims(token, { status, page, pageSize: PAGE_SIZE });
         if (id !== requestId.current) return; // llegó una respuesta más reciente
         setData(result);
         setError(null);
       } catch (e) {
         if (id !== requestId.current) return;
         if (e instanceof ApiError && e.status === 401) {
-          onUnauthorized();
+          handleUnauthorized();
           return;
         }
         // En un refresco silencioso conservamos la tabla actual en vez de reemplazarla por un error.
@@ -151,7 +214,7 @@ function Dashboard({
         if (id === requestId.current) setLoading(false);
       }
     },
-    [apiKey, status, page, onUnauthorized],
+    [token, status, page, handleUnauthorized],
   );
 
   useEffect(() => {
@@ -191,15 +254,19 @@ function Dashboard({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Reclamos</h1>
           <p className="mt-1 text-sm text-slate-600">
             {data ? `${data.totalCount} reclamo${data.totalCount === 1 ? "" : "s"}` : "Cargando…"}
+            <span className="mx-1.5" aria-hidden="true">
+              ·
+            </span>
+            Sesión de <strong className="font-semibold text-slate-800">{username}</strong>
           </p>
         </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="w-48">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="w-full sm:w-52">
             <Field id="filtro-estado" label="Filtrar por estado">
               {() => (
                 <select
@@ -222,19 +289,21 @@ function Dashboard({
               )}
             </Field>
           </div>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setLoading(true);
-              void load(false);
-            }}
-            disabled={loading}
-          >
-            Actualizar
-          </Button>
-          <Button variant="ghost" onClick={onLogout}>
-            Cerrar sesión
-          </Button>
+          <div className="grid grid-cols-2 gap-3 sm:flex">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setLoading(true);
+                void load(false);
+              }}
+              disabled={loading}
+            >
+              Actualizar
+            </Button>
+            <Button variant="ghost" onClick={onLogout}>
+              Cerrar sesión
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -261,7 +330,7 @@ function Dashboard({
           >
             Anterior
           </Button>
-          <span className="text-sm text-slate-600">
+          <span className="text-center text-sm text-slate-600">
             Página {page} de {totalPages}
           </span>
           <Button
@@ -279,10 +348,10 @@ function Dashboard({
 
       <StatusDialog
         claim={selected}
-        apiKey={apiKey}
+        token={token}
         onClose={() => setSelected(null)}
         onUpdated={handleUpdated}
-        onUnauthorized={onUnauthorized}
+        onUnauthorized={handleUnauthorized}
       />
     </div>
   );

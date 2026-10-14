@@ -1,5 +1,5 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PuntoReclamo.Api.Security;
 using PuntoReclamo.Application.Abstractions;
 using PuntoReclamo.Application.Contracts;
 
@@ -8,7 +8,7 @@ namespace PuntoReclamo.Api.Controllers;
 [ApiController]
 [Route("api/admin/claims")]
 [Produces("application/json")]
-[RequireApiKey]
+[Authorize] // JWT (Authorization: Bearer) o clave en el header X-Api-Key
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
 public sealed class AdminClaimsController(IClaimService claims) : ControllerBase
 {
