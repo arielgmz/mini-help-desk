@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   useCallback,
@@ -173,6 +173,7 @@ function Dashboard({
 }) {
   const { token, expiresAt, username } = session;
   const [status, setStatus] = useState<ClaimStatus | "">("");
+  const [overdueOnly, setOverdueOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [data, setData] = useState<Paged<AdminClaim> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -198,7 +199,7 @@ function Dashboard({
     async (silent: boolean) => {
       const id = ++requestId.current;
       try {
-        const result = await adminListClaims(token, { status, page, pageSize: PAGE_SIZE });
+        const result = await adminListClaims(token, { status, page, pageSize: PAGE_SIZE, overdueOnly });
         if (id !== requestId.current) return; // llegó una respuesta más reciente
         setData(result);
         setError(null);
@@ -214,7 +215,7 @@ function Dashboard({
         if (id === requestId.current) setLoading(false);
       }
     },
-    [token, status, page, handleUnauthorized],
+    [token, status, overdueOnly, page, handleUnauthorized],
   );
 
   useEffect(() => {
@@ -242,7 +243,7 @@ function Dashboard({
             ...current,
             items: current.items
               .map((c) => (c.folio === updated.folio ? updated : c))
-              .filter((c) => !status || c.status === status),
+              .filter((c) => (!status || c.status === status) && (!overdueOnly || c.isOverdue)),
           }
         : current,
     );
@@ -289,6 +290,19 @@ function Dashboard({
               )}
             </Field>
           </div>
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 has-[:checked]:border-rose-400 has-[:checked]:bg-rose-50 has-[:checked]:text-rose-800 sm:min-h-10">
+            <input
+              type="checkbox"
+              checked={overdueOnly}
+              onChange={(e) => {
+                setLoading(true);
+                setOverdueOnly(e.target.checked);
+                setPage(1);
+              }}
+              className="size-4 accent-rose-600"
+            />
+            Solo vencidos
+          </label>
           <div className="grid grid-cols-2 gap-3 sm:flex">
             <Button
               variant="secondary"
@@ -312,7 +326,11 @@ function Dashboard({
 
       {!error && !loading && items.length === 0 ? (
         <EmptyState title="No hay reclamos para mostrar">
-          {status ? "Pruebe con otro estado o quite el filtro." : "Aún no se han registrado reclamos."}
+          {overdueOnly
+            ? "No hay reclamos vencidos con estos filtros. ¡Todo al día!"
+            : status
+              ? "Pruebe con otro estado o quite el filtro."
+              : "Aún no se han registrado reclamos."}
         </EmptyState>
       ) : (
         !error && <ClaimsTable claims={items} loading={loading} onChangeStatus={setSelected} />

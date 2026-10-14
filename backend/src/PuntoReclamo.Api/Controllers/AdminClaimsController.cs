@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PuntoReclamo.Application.Abstractions;
 using PuntoReclamo.Application.Contracts;
@@ -12,7 +12,7 @@ namespace PuntoReclamo.Api.Controllers;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
 public sealed class AdminClaimsController(IClaimService claims) : ControllerBase
 {
-    /// <summary>Lista paginada de reclamos, con filtro opcional por estado e indicador de vencimiento.</summary>
+    /// <summary>Lista paginada: filtros opcionales por estado y solo vencidos (overdue=true). Los vencidos van primero.</summary>
     [HttpGet]
     [ProducesResponseType<PagedResponse<AdminClaimResponse>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
@@ -20,8 +20,9 @@ public sealed class AdminClaimsController(IClaimService claims) : ControllerBase
         [FromQuery] string? status,
         CancellationToken cancellationToken,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10) =>
-        await claims.ListAsync(new ListClaimsQuery(status, page, pageSize), cancellationToken);
+        [FromQuery] int pageSize = 10,
+        [FromQuery] bool overdue = false) =>
+        await claims.ListAsync(new ListClaimsQuery(status, page, pageSize, overdue), cancellationToken);
 
     /// <summary>Cambia el estado de un reclamo respetando la máquina de estados.</summary>
     [HttpPatch("{folio}/status")]

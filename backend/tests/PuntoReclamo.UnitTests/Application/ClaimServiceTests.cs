@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using FluentValidation;
 using Microsoft.Extensions.Time.Testing;
 using PuntoReclamo.Application.Contracts;
@@ -184,6 +184,73 @@ public class ClaimServiceTests
         received.TotalPages.Should().Be(2);
         received.Items.Should().HaveCount(1);
         inProgress.Items.Should().ContainSingle().Which.Folio.Should().Be(first);
+    }
+
+    // Escenario: closed (rechazado, vencido por fecha pero final), old (muy atrasado), mid (atrasado), fresh (vigente).
+    private async Task<(string Closed, string Old, string Mid, string Fresh)> SeedOverdueScenarioAsync()
+    {
+        var closed = await _service.CreateAsync(ValidRequest("closed@example.com"), CancellationToken.None);
+        await _service.ChangeStatusAsync(closed.Folio, new ChangeStatusRequest("Rechazado", "No procede."), CancellationToken.None);
+        var old = await _service.CreateAsync(ValidRequest("old@example.com"), CancellationToken.None);
+
+        _clock.Advance(TimeSpan.FromDays(10));
+        var mid = await _service.CreateAsync(ValidRequest("mid@example.com"), CancellationToken.None);
+
+        _clock.Advance(TimeSpan.FromDays(10));
+        var fresh = await _service.CreateAsync(ValidRequest("fresh@example.com"), CancellationToken.None);
+
+        return (closed.Folio, old.Folio, mid.Folio, fresh.Folio);
+    }
+
+    [Fact]
+    public async Task List_PutsOverdueFirst_MostOverdueOnTop_ThenNewestFirst()
+    {
+        var (closed, old, mid, fresh) = await SeedOverdueScenarioAsync();
+
+        var page = await _service.ListAsync(new ListClaimsQuery(null), CancellationToken.None);
+
+        page.Items.Select(c => c.Folio).Should().Equal(old, mid, fresh, closed);
+        page.Items.Select(c => c.IsOverdue).Should().Equal(true, true, false, false);
+    }
+
+    [Fact]
+    public async Task List_OverdueOnly_ReturnsOnlyOverdueNonFinalClaims()
+    {
+        var (_, old, mid, _) = await SeedOverdueScenarioAsync();
+
+        var page = await _service.ListAsync(new ListClaimsQuery(null, OverdueOnly: true), CancellationToken.None);
+
+        page.TotalCount.Should().Be(2);
+        page.Items.Select(c => c.Folio).Should().Equal(old, mid);
+        page.Items.Should().OnlyContain(c => c.IsOverdue);
+    }
+
+    [Fact]
+    public async Task List_OverdueOnly_CombinesWithStatusFilter()
+    {
+        var (_, old, _, _) = await SeedOverdueScenarioAsync();
+        await _service.ChangeStatusAsync(old, new ChangeStatusRequest("EnProceso", null), CancellationToken.None);
+
+        var inProgress = await _service.ListAsync(new ListClaimsQuery("EnProceso", OverdueOnly: true), CancellationToken.None);
+        var received = await _service.ListAsync(new ListClaimsQuery("Recibido", OverdueOnly: true), CancellationToken.None);
+
+        inProgress.Items.Should().ContainSingle().Which.Folio.Should().Be(old);
+        received.Items.Should().ContainSingle().Which.IsOverdue.Should().BeTrue();
+        received.Items.Single().Folio.Should().NotBe(old);
+    }
+
+    [Fact]
+    public async Task List_OverdueOnly_PaginatesOverTheFilteredSet()
+    {
+        await SeedOverdueScenarioAsync();
+
+        var first = await _service.ListAsync(new ListClaimsQuery(null, 1, 1, OverdueOnly: true), CancellationToken.None);
+        var second = await _service.ListAsync(new ListClaimsQuery(null, 2, 1, OverdueOnly: true), CancellationToken.None);
+
+        first.TotalPages.Should().Be(2);
+        first.Items.Should().ContainSingle();
+        second.Items.Should().ContainSingle();
+        second.Items.Single().Folio.Should().NotBe(first.Items.Single().Folio);
     }
 
     [Theory]

@@ -110,7 +110,7 @@ Si la tabla está vacía, la API crea 7 reclamos (fechas relativas al momento de
 | POST | `/api/auth/login` | Público (limitado) | 200, 401, 422, 429 |
 | POST | `/api/claims` | Público | 201, 422 |
 | GET | `/api/claims/{folio}?email=` | Público | 200, 404 |
-| GET | `/api/admin/claims?status=&page=&pageSize=` | JWT o `X-Api-Key` | 200, 401, 422 |
+| GET | `/api/admin/claims?status=&page=&pageSize=&overdue=` | JWT o `X-Api-Key` | 200, 401, 422 |
 | PATCH | `/api/admin/claims/{folio}/status` | JWT o `X-Api-Key` | 200, 401, 404, 409, 422 |
 | GET | `/health` | Público | 200 |
 
@@ -122,7 +122,7 @@ Todos los errores usan **ProblemDetails (RFC 7807)**; los de validación incluye
 dotnet test backend/PuntoReclamo.sln
 ```
 
-71 pruebas: calculadora de días hábiles (lunes, miércoles, viernes, sábado, domingo), máquina de estados (transiciones válidas/ inválidas, comentario obligatorio), formato y correlatividad del folio, reglas de servicio (anti-enumeración, vencimiento, paginación) y seguridad (emisión/validación de JWT, firma ajena, expirado, manipulado).
+75 pruebas: calculadora de días hábiles (lunes, miércoles, viernes, sábado, domingo), máquina de estados (transiciones válidas/ inválidas, comentario obligatorio), formato y correlatividad del folio, reglas de servicio (anti-enumeración, vencimiento, orden "vencidos primero", filtro de vencidos, paginación) y seguridad (emisión/validación de JWT, firma ajena, expirado, manipulado).
 
 ## Diseño responsivo
 
@@ -136,6 +136,7 @@ Verificado con una auditoría automatizada en 17 tamaños (320×568 hasta 2560×
 - **Códigos**: validación semántica → 422 (en POST también, la consigna permitía 400/422); transición ilegal → 409 aun si falta el comentario; comentario faltante en transición válida → 422.
 - **CI**: 4–20 caracteres alfanuméricos, espacios o guiones (admite complementos como `1234567-1A`).
 - **Vista pública**: el seguimiento no expone CI, nombre ni teléfono.
+- **Listado admin**: los reclamos vencidos van primero (el más atrasado arriba) y el resto por fecha de registro descendente; `overdue=true` (interruptor "Solo vencidos" en el panel) muestra únicamente los vencidos y se combina con el filtro de estado.
 - **Estados finales**: `Resuelto` y `Rechazado` no admiten más cambios; `isOverdue` solo aplica a estados no finales.
 
 ## Decisiones

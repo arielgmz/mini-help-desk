@@ -1,4 +1,4 @@
-namespace PuntoReclamo.Application.Contracts;
+﻿namespace PuntoReclamo.Application.Contracts;
 
 public sealed record CreateClaimRequest(
     string FullName,
@@ -20,4 +20,4 @@ public sealed record CreateClaimRequest(
 
 public sealed record ChangeStatusRequest(string Status, string? Comment);
 
-public sealed record ListClaimsQuery(string? Status, int Page = 1, int PageSize = 10);
+public sealed record ListClaimsQuery(string? Status, int Page = 1, int PageSize = 10, bool OverdueOnly = false);

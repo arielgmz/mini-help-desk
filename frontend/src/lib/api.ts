@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   AdminClaim,
   ClaimStatus,
   CreateClaimPayload,
@@ -77,11 +77,14 @@ export interface AdminListParams {
   status: ClaimStatus | "";
   page: number;
   pageSize: number;
+  /** Solo reclamos vencidos (no finales y con fecha límite pasada). */
+  overdueOnly?: boolean;
 }
 
-export const adminListClaims = (token: string, { status, page, pageSize }: AdminListParams) => {
+export const adminListClaims = (token: string, { status, page, pageSize, overdueOnly }: AdminListParams) => {
   const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (status) query.set("status", status);
+  if (overdueOnly) query.set("overdue", "true");
   return request<Paged<AdminClaim>>(`/api/admin/claims?${query}`, { cache: "no-store" }, token);
 };
 

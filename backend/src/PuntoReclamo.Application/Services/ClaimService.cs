@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using PuntoReclamo.Application.Abstractions;
 using PuntoReclamo.Application.Common;
 using PuntoReclamo.Application.Contracts;
@@ -58,9 +58,11 @@ public sealed class ClaimService(
         await listValidator.ValidateAndThrowAsync(query, cancellationToken);
 
         ClaimStatus? status = EnumParser.TryParse<ClaimStatus>(query.Status, out var parsed) ? parsed : null;
-        var page = await repository.ListAsync(status, query.Page, query.PageSize, cancellationToken);
-
+        // Un único "ahora" para filtrar, ordenar y marcar isOverdue: el listado es coherente consigo mismo.
         var now = clock.GetUtcNow().UtcDateTime;
+        var filter = new ClaimListFilter(status, query.OverdueOnly, now);
+        var page = await repository.ListAsync(filter, query.Page, query.PageSize, cancellationToken);
+
         var items = page.Items.Select(c => c.ToAdminResponse(now)).ToList();
         var totalPages = (int)Math.Ceiling(page.TotalCount / (double)query.PageSize);
 
