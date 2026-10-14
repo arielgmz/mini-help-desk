@@ -1,0 +1,54 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: puntoreclamo-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Pr0ntoReclamo2026!}
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  api:
+    build:
+      context: ./backend
+    container_name: puntoreclamo-api
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=PuntoReclamo;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Pr0ntoReclamo2026!};TrustServerCertificate=True;Encrypt=False"
+      Admin__ApiKey: ${ADMIN_API_KEY:-admin-secret-key-2026}
+      Cors__AllowedOrigins__0: http://localhost:3000
+      Database__ApplyMigrationsOnStartup: "true"
+      Database__Seed: "true"
+      Swagger__Enabled: "true"
+    ports:
+      - "5017:8080"
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        # URL del API vista desde el navegador (se incrusta en el bundle al construir).
+        NEXT_PUBLIC_API_URL: http://localhost:5017
+    container_name: puntoreclamo-web
+    depends_on:
+      - api
+    environment:
+      # URL del API vista desde el contenedor (Server Action de seguimiento).
+      API_URL: http://api:8080
+    ports:
+      - "3000:3000"
+
+volumes:
+  sqlserver-data:
