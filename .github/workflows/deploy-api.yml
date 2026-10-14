@@ -1,0 +1,55 @@
+name: deploy-api
+
+# Compila y prueba el backend en GitHub Actions y sube el resultado publicado a MonsterASP.NET por FTP.
+# MonsterASP.NET no compila .NET: solo recibe los archivos ya publicados.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-api.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Pruebas unitarias
+        run: dotnet test backend/PuntoReclamo.sln -c Release
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publicar API
+        run: dotnet publish backend/src/PuntoReclamo.Api -c Release -o publish
+
+      # La configuración real (cadena de conexión, clave admin, CORS) NO va en el repo:
+      # se define en MonsterASP.NET (variables de entorno o appsettings.Production.json en el servidor).
+      - name: Subir a MonsterASP.NET
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps # si la conexión es rechazada, pruebe "ftp"
+          local-dir: publish/
+          server-dir: /wwwroot/
+          exclude: |
+            **/appsettings.Production.json
