@@ -1,25 +1,28 @@
-﻿import { formatCompact } from "@/lib/format";
-import { NEXT_STATUSES, TYPE_LABEL, type AdminClaim } from "@/lib/types";
+import { formatCompact } from "@/lib/format";
+import { TYPE_LABEL, type AdminClaim } from "@/lib/types";
 import { Button, OverdueBadge, Skeleton, StatusBadge, cn } from "../ui";
 
 interface Props {
   claims: AdminClaim[];
   loading: boolean;
-  onChangeStatus: (claim: AdminClaim) => void;
+  /** Abre el detalle del reclamo (desde ahí se cambia el estado). */
+  onSelect: (claim: AdminClaim) => void;
 }
 
-function Action({ claim, onChangeStatus }: { claim: AdminClaim; onChangeStatus: Props["onChangeStatus"] }) {
-  if (NEXT_STATUSES[claim.status].length === 0) {
-    return <span className="text-xs text-slate-500">Finalizado</span>;
-  }
+function Action({ claim, onSelect }: { claim: AdminClaim; onSelect: Props["onSelect"] }) {
   return (
-    <Button variant="secondary" className="min-h-9 px-3" onClick={() => onChangeStatus(claim)}>
-      Cambiar estado
+    <Button
+      variant="secondary"
+      className="min-h-9 px-3"
+      onClick={() => onSelect(claim)}
+      aria-label={`Ver detalle del reclamo ${claim.folio}`}
+    >
+      Ver detalle
     </Button>
   );
 }
 
-export function ClaimsTable({ claims, loading, onChangeStatus }: Props) {
+export function ClaimsTable({ claims, loading, onSelect }: Props) {
   if (loading) return <TableSkeleton />;
 
   return (
@@ -30,13 +33,27 @@ export function ClaimsTable({ claims, loading, onChangeStatus }: Props) {
           <caption className="sr-only">Listado de reclamos</caption>
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
             <tr>
-              <th scope="col" className="px-4 py-3">Folio</th>
-              <th scope="col" className="px-4 py-3">Cliente</th>
-              <th scope="col" className="px-4 py-3">Tipo</th>
-              <th scope="col" className="px-4 py-3">Estado</th>
-              <th scope="col" className="px-4 py-3">Registrado</th>
-              <th scope="col" className="px-4 py-3">Vence</th>
-              <th scope="col" className="px-4 py-3"><span className="sr-only">Acciones</span></th>
+              <th scope="col" className="px-4 py-3">
+                Folio
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Cliente
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Tipo
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Estado
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Registrado
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Vence
+              </th>
+              <th scope="col" className="px-4 py-3">
+                <span className="sr-only">Acciones</span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -57,7 +74,7 @@ export function ClaimsTable({ claims, loading, onChangeStatus }: Props) {
                 <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatCompact(c.createdAt)}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatCompact(c.dueDate)}</td>
                 <td className="px-4 py-3 text-right">
-                  <Action claim={c} onChangeStatus={onChangeStatus} />
+                  <Action claim={c} onSelect={onSelect} />
                 </td>
               </tr>
             ))}
@@ -88,7 +105,7 @@ export function ClaimsTable({ claims, loading, onChangeStatus }: Props) {
               {TYPE_LABEL[c.claimType]} · vence {formatCompact(c.dueDate)}
             </p>
             <div className="mt-3">
-              <Action claim={c} onChangeStatus={onChangeStatus} />
+              <Action claim={c} onSelect={onSelect} />
             </div>
           </li>
         ))}

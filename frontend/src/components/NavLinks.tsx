@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "./ui";
 
 const LINKS = [
-  { href: "/", label: "Registrar reclamo" },
+  { href: "/reclamos", label: "Registrar reclamo" },
   { href: "/seguimiento", label: "Seguimiento" },
   { href: "/admin", label: "Administración" },
 ];
@@ -15,7 +15,7 @@ export function NavLinks() {
   return (
     <nav aria-label="Principal" className="flex flex-wrap gap-1">
       {LINKS.map(({ href, label }) => {
-        const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+        const active = pathname.startsWith(href);
         return (
           <Link
             key={href}

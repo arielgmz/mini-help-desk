@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { NavLinks } from "@/components/NavLinks";
 import "./globals.css";
@@ -23,8 +23,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </a>
         <header className="border-b border-slate-200 bg-white">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-3">
-            <Link href="/" className="flex min-h-10 items-center gap-2 text-base font-bold text-slate-900">
-              <span className="grid size-8 place-items-center rounded-lg bg-indigo-600 text-sm text-white" aria-hidden="true">
+            <Link href="/reclamos" className="flex min-h-10 items-center gap-2 text-base font-bold text-slate-900">
+              <span
+                className="grid size-8 place-items-center rounded-lg bg-indigo-600 text-sm text-white"
+                aria-hidden="true"
+              >
                 PR
               </span>
               Punto de Reclamo

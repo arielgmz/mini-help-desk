@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using PuntoReclamo.Application.Abstractions;
 using PuntoReclamo.Domain.Entities;
 using PuntoReclamo.Domain.Enums;

@@ -1,4 +1,4 @@
-﻿namespace PuntoReclamo.Application.Contracts;
+namespace PuntoReclamo.Application.Contracts;
 
 public sealed record CreateClaimRequest(
     string FullName,

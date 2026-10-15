@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using FluentValidation;
 using Microsoft.Extensions.Time.Testing;
 using PuntoReclamo.Application.Contracts;

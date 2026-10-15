@@ -1,26 +1,12 @@
-﻿"use client";
+"use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type FormEvent,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { ApiError, adminListClaims, login } from "@/lib/api";
 import { adminSession, parseSession, type AdminSession } from "@/lib/session";
-import {
-  CLAIM_STATUSES,
-  STATUS_LABEL,
-  type AdminClaim,
-  type ClaimStatus,
-  type Paged,
-} from "@/lib/types";
+import { CLAIM_STATUSES, STATUS_LABEL, type AdminClaim, type ClaimStatus, type Paged } from "@/lib/types";
 import { Alert, Button, EmptyState, Field, Skeleton, inputClass } from "../ui";
 import { ClaimsTable } from "./ClaimsTable";
-import { StatusDialog } from "./StatusDialog";
+import { ClaimDetailDialog } from "./ClaimDetailDialog";
 
 const PAGE_SIZE = 10;
 const REFRESH_MS = 30_000;
@@ -29,7 +15,11 @@ const noopSubscribe = () => () => {};
 
 export function AdminApp() {
   // false en el servidor y true en el cliente: evita parpadeo del login antes de leer la sesión.
-  const isClient = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  const isClient = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
   const raw = useSyncExternalStore(adminSession.subscribe, adminSession.getRaw, () => null);
   const session = useMemo(() => parseSession(raw), [raw]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -154,9 +144,7 @@ function LoginForm({ notice, onLoggedIn }: { notice: string | null; onLoggedIn: 
         <Button type="submit" loading={submitting} className="w-full">
           {submitting ? "Ingresando…" : "Iniciar sesión"}
         </Button>
-        <p className="text-xs text-slate-500">
-          La sesión se guarda solo en esta pestaña y expira automáticamente.
-        </p>
+        <p className="text-xs text-slate-500">La sesión se guarda solo en esta pestaña y expira automáticamente.</p>
       </form>
     </div>
   );
@@ -333,7 +321,7 @@ function Dashboard({
               : "Aún no se han registrado reclamos."}
         </EmptyState>
       ) : (
-        !error && <ClaimsTable claims={items} loading={loading} onChangeStatus={setSelected} />
+        !error && <ClaimsTable claims={items} loading={loading} onSelect={setSelected} />
       )}
 
       {data && data.totalPages > 1 && (
@@ -364,7 +352,7 @@ function Dashboard({
         </nav>
       )}
 
-      <StatusDialog
+      <ClaimDetailDialog
         claim={selected}
         token={token}
         onClose={() => setSelected(null)}

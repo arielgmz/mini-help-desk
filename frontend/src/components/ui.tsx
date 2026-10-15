@@ -7,12 +7,7 @@ export function cn(...parts: Array<string | false | null | undefined>) {
 
 export function Spinner({ className }: { className?: string }) {
   return (
-    <svg
-      className={cn("size-4 animate-spin", className)}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
+    <svg className={cn("size-4 animate-spin", className)} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
       <path d="M4 12a8 8 0 0 1 8-8" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
     </svg>
@@ -69,15 +64,17 @@ interface FieldProps {
 
 /** Etiqueta + control + mensaje de error accesible (aria-describedby / aria-invalid). */
 export function Field({ id, label, error, hint, optional, children }: FieldProps) {
-  const describedBy = [error ? `${id}-error` : null, hint ? `${id}-hint` : null].filter(Boolean).join(" ");
+  // Con error visible la pista se oculta: describedBy solo referencia elementos que existen en el DOM.
+  const showHint = Boolean(hint) && !error;
+  const describedBy = error ? `${id}-error` : showHint ? `${id}-hint` : undefined;
   return (
     <div>
       <label htmlFor={id} className="mb-1 flex items-baseline justify-between text-sm font-medium text-slate-800">
         <span>{label}</span>
         {optional && <span className="text-xs font-normal text-slate-500">Opcional</span>}
       </label>
-      {children({ "aria-invalid": Boolean(error), "aria-describedby": describedBy || undefined })}
-      {hint && !error && (
+      {children({ "aria-invalid": Boolean(error), "aria-describedby": describedBy })}
+      {showHint && (
         <p id={`${id}-hint`} className="mt-1 text-xs text-slate-500">
           {hint}
         </p>
@@ -136,9 +133,7 @@ export function Alert({
   children: ReactNode;
 }) {
   const styles =
-    tone === "error"
-      ? "border-rose-200 bg-rose-50 text-rose-900"
-      : "border-sky-200 bg-sky-50 text-sky-900";
+    tone === "error" ? "border-rose-200 bg-rose-50 text-rose-900" : "border-sky-200 bg-sky-50 text-sky-900";
   return (
     <div role={tone === "error" ? "alert" : "status"} className={cn("rounded-lg border p-4 text-sm", styles)}>
       {title && <p className="font-semibold">{title}</p>}

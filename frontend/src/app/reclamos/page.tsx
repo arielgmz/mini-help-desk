@@ -3,7 +3,7 @@ import { ClaimForm } from "@/components/ClaimForm";
 
 export const metadata: Metadata = { title: "Registrar reclamo" };
 
-export default function HomePage() {
+export default function ClaimFormPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <header className="mb-6">

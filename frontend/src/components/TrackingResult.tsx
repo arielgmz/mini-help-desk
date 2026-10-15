@@ -1,17 +1,15 @@
-"use client";
-
-import { useState } from "react";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { STATUS_LABEL, TYPE_LABEL, type ClaimStatus, type ClaimTracking, type HistoryItem } from "@/lib/types";
-import { StatusBadge, cn } from "./ui";
+import { Skeleton, StatusBadge, cn } from "./ui";
 
-export function ClaimSummary({ claim }: { claim: ClaimTracking }) {
-  const isFinal = claim.status === "Resuelto" || claim.status === "Rechazado";
-  const [now] = useState(() => Date.now());
-  const overdue = !isFinal && new Date(claim.dueDate).getTime() < now;
+// Componentes de presentación sin estado: se renderizan en el servidor (página /seguimiento).
 
+export function ClaimSummary({ claim, overdue }: { claim: ClaimTracking; overdue: boolean }) {
   return (
-    <section aria-labelledby="resumen-titulo" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+    <section
+      aria-labelledby="resumen-titulo"
+      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Folio</p>
@@ -26,9 +24,16 @@ export function ClaimSummary({ claim }: { claim: ClaimTracking }) {
         <Item label="Tipo de reclamo" value={TYPE_LABEL[claim.claimType]} />
         <Item label="Registrado" value={formatDateTime(claim.createdAt)} />
         {claim.resolvedAt ? (
-          <Item label={claim.status === "Resuelto" ? "Resuelto el" : "Cerrado el"} value={formatDateTime(claim.resolvedAt)} />
+          <Item
+            label={claim.status === "Resuelto" ? "Resuelto el" : "Cerrado el"}
+            value={formatDateTime(claim.resolvedAt)}
+          />
         ) : (
-          <Item label="Fecha límite de atención" value={formatDate(claim.dueDate)} tone={overdue ? "warn" : undefined} />
+          <Item
+            label="Fecha límite de atención"
+            value={formatDate(claim.dueDate)}
+            tone={overdue ? "warn" : undefined}
+          />
         )}
       </dl>
 
@@ -50,7 +55,9 @@ function Item({ label, value, tone }: { label: string; value: string; tone?: "wa
   return (
     <div>
       <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</dt>
-      <dd className={cn("mt-1 text-sm font-semibold", tone === "warn" ? "text-amber-700" : "text-slate-900")}>{value}</dd>
+      <dd className={cn("mt-1 text-sm font-semibold", tone === "warn" ? "text-amber-700" : "text-slate-900")}>
+        {value}
+      </dd>
     </div>
   );
 }
@@ -68,7 +75,10 @@ export function Timeline({ history }: { history: HistoryItem[] }) {
   }
 
   return (
-    <section aria-labelledby="historial-titulo" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+    <section
+      aria-labelledby="historial-titulo"
+      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+    >
       <h2 id="historial-titulo" className="text-lg font-bold text-slate-900">
         Historial del reclamo
       </h2>
@@ -102,5 +112,26 @@ export function Timeline({ history }: { history: HistoryItem[] }) {
         })}
       </ol>
     </section>
+  );
+}
+
+export function TrackingResultSkeleton() {
+  return (
+    <div className="space-y-6" role="status" aria-label="Cargando resultado">
+      <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
+        <Skeleton className="h-7 w-48" />
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Skeleton className="h-10" />
+          <Skeleton className="h-10" />
+          <Skeleton className="h-10" />
+        </div>
+        <Skeleton className="h-16" />
+      </div>
+      <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-12" />
+        <Skeleton className="h-12" />
+      </div>
+    </div>
   );
 }

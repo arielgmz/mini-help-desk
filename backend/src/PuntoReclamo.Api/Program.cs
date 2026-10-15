@@ -16,7 +16,13 @@ builder.Services
         // La validación la hace FluentValidation (422 con ProblemDetails); MVC no debe exigir [Required] implícito.
         options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
     })
-    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()))
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // JSON malformado o parámetros con tipo incorrecto: 400 en ProblemDetails, en español y sin los detalles
+        // internos del parser (rutas JSON, número de línea, tipos .NET) que devuelve la respuesta por defecto.
+        options.InvalidModelStateResponseFactory = context => InvalidRequestResponse.Create(context);
+    });
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);

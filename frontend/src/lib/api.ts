@@ -1,11 +1,4 @@
-﻿import type {
-  AdminClaim,
-  ClaimStatus,
-  CreateClaimPayload,
-  CreateClaimResponse,
-  LoginResponse,
-  Paged,
-} from "./types";
+import type { AdminClaim, ClaimStatus, CreateClaimPayload, CreateClaimResponse, LoginResponse, Paged } from "./types";
 
 /** URL pública del API (la usa el navegador; está permitida por CORS en el backend). */
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5017";
@@ -33,11 +26,7 @@ export function toApiError(status: number, problem: ProblemDetails | null): ApiE
   for (const [field, messages] of Object.entries(problem?.errors ?? {})) {
     if (messages.length > 0) fieldErrors[field] = messages[0];
   }
-  return new ApiError(
-    status,
-    problem?.detail ?? problem?.title ?? "Ocurrió un error inesperado.",
-    fieldErrors,
-  );
+  return new ApiError(status, problem?.detail ?? problem?.title ?? "Ocurrió un error inesperado.", fieldErrors);
 }
 
 async function request<T>(path: string, init: RequestInit = {}, bearerToken?: string): Promise<T> {

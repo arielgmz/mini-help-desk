@@ -3,6 +3,7 @@ using FluentValidation.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using PuntoReclamo.Api.Middleware;
 using PuntoReclamo.Api.Security;
 
 namespace PuntoReclamo.Api.Controllers;
@@ -45,10 +46,13 @@ public sealed class AuthController(AdminTokenService tokens) : ControllerBase
         // Mismo mensaje para usuario inexistente y contraseña incorrecta.
         if (!tokens.ValidateCredentials(username, request.Password))
         {
-            return Problem(
-                title: "Credenciales inválidas",
-                detail: "Usuario o contraseña incorrectos.",
-                statusCode: StatusCodes.Status401Unauthorized);
+            return new ProblemJsonResult(new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "Credenciales inválidas",
+                Detail = "Usuario o contraseña incorrectos.",
+                Type = "https://tools.ietf.org/html/rfc9110#section-15.5.2"
+            });
         }
 
         var token = tokens.CreateToken(username!);

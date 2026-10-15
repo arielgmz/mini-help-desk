@@ -49,14 +49,7 @@ export function validateClaimField(field: ClaimFormField, raw: string): string |
   }
 }
 
-export const CLAIM_FIELDS: ClaimFormField[] = [
-  "fullName",
-  "documentId",
-  "email",
-  "phone",
-  "claimType",
-  "description",
-];
+export const CLAIM_FIELDS: ClaimFormField[] = ["fullName", "documentId", "email", "phone", "claimType", "description"];
 
 export function validateClaimForm(values: ClaimFormValues): FieldErrors {
   const errors: FieldErrors = {};

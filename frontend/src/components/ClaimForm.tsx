@@ -36,8 +36,7 @@ export function ClaimForm() {
   const formRef = useRef<HTMLFormElement>(null);
 
   const clientErrors = validateClaimForm(values);
-  const errorFor = (field: ClaimFormField) =>
-    serverErrors[field] ?? (touched[field] ? clientErrors[field] : undefined);
+  const errorFor = (field: ClaimFormField) => serverErrors[field] ?? (touched[field] ? clientErrors[field] : undefined);
 
   function handleChange(field: ClaimFormField) {
     return (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -169,7 +168,12 @@ export function ClaimForm() {
           )}
         </Field>
 
-        <Field id="email" label="Correo electrónico" error={errorFor("email")} hint="Lo necesitará para consultar el seguimiento.">
+        <Field
+          id="email"
+          label="Correo electrónico"
+          error={errorFor("email")}
+          hint="Lo necesitará para consultar el seguimiento."
+        >
           {(aria) => (
             <input
               {...aria}
@@ -287,14 +291,28 @@ function ClaimCreated({ claim, onReset }: { claim: CreateClaimResponse; onReset:
     >
       <div className="mx-auto max-w-xl text-center">
         <div className="mx-auto grid size-14 place-items-center rounded-full bg-emerald-100 text-emerald-700">
-          <svg viewBox="0 0 24 24" className="size-8" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            className="size-8"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            aria-hidden="true"
+          >
             <path d="m5 13 4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
-        <h2 id="exito-titulo" ref={setHeading} tabIndex={-1} className="mt-4 text-2xl font-bold text-slate-900 outline-none">
+        <h2
+          id="exito-titulo"
+          ref={setHeading}
+          tabIndex={-1}
+          className="mt-4 text-2xl font-bold text-slate-900 outline-none"
+        >
           ¡Reclamo registrado!
         </h2>
-        <p className="mt-1 text-slate-600">Guarde su folio: lo necesitará, junto con su correo, para consultar el estado.</p>
+        <p className="mt-1 text-slate-600">
+          Guarde su folio: lo necesitará, junto con su correo, para consultar el estado.
+        </p>
 
         <div className="mt-6 rounded-xl bg-slate-50 p-5 ring-1 ring-slate-200">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Folio</p>

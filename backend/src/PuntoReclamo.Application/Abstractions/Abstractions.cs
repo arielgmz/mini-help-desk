@@ -1,4 +1,4 @@
-﻿using PuntoReclamo.Application.Contracts;
+using PuntoReclamo.Application.Contracts;
 using PuntoReclamo.Domain.Entities;
 using PuntoReclamo.Domain.Enums;
 

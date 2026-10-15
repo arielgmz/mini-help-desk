@@ -26,8 +26,7 @@ export const NEXT_STATUSES: Record<ClaimStatus, ClaimStatus[]> = {
   Rechazado: [],
 };
 
-export const requiresComment = (status: ClaimStatus) =>
-  status === "Resuelto" || status === "Rechazado";
+export const requiresComment = (status: ClaimStatus) => status === "Resuelto" || status === "Rechazado";
 
 export interface CreateClaimPayload {
   fullName: string;

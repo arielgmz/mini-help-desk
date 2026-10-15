@@ -1,6 +1,7 @@
-# API + Web contra una base SQL Server REMOTA (MonsterASP.NET), sin contenedor de SQL Server local.
+# API + Web contra una base SQL Server REMOTA (por ejemplo un hosting gratuito), sin SQL Server local.
 #
-#   $env:REMOTE_DB_PASSWORD = "<contraseña de la base>"      # PowerShell
+#   Defina (PowerShell: $env:VAR = "...") REMOTE_DB_HOST, REMOTE_DB_NAME, REMOTE_DB_USER, REMOTE_DB_PASSWORD,
+#   ADMIN_API_KEY, ADMIN_USERNAME, ADMIN_PASSWORD y JWT_SIGNING_KEY; luego:
 #   docker compose -f docker-compose.remote.yml up -d --build
 #
 # La contraseña NUNCA va en este archivo ni en el repositorio: se lee del entorno.
@@ -11,7 +12,7 @@ services:
     container_name: puntoreclamo-api
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__DefaultConnection: "Server=${REMOTE_DB_HOST:-db73455.public.databaseasp.net},1433;Database=${REMOTE_DB_NAME:-db73455};User Id=${REMOTE_DB_USER:-db73455};Password=${REMOTE_DB_PASSWORD:?Defina REMOTE_DB_PASSWORD};Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True"
+      ConnectionStrings__DefaultConnection: "Server=${REMOTE_DB_HOST:?Defina REMOTE_DB_HOST},1433;Database=${REMOTE_DB_NAME:?Defina REMOTE_DB_NAME};User Id=${REMOTE_DB_USER:?Defina REMOTE_DB_USER};Password=${REMOTE_DB_PASSWORD:?Defina REMOTE_DB_PASSWORD};Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True"
       Admin__ApiKey: ${ADMIN_API_KEY:?Defina ADMIN_API_KEY}
       Admin__Username: ${ADMIN_USERNAME:?Defina ADMIN_USERNAME}
       Admin__Password: ${ADMIN_PASSWORD:?Defina ADMIN_PASSWORD}

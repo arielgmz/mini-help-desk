@@ -1,4 +1,4 @@
-﻿using FluentValidation;
+using FluentValidation;
 using PuntoReclamo.Application.Abstractions;
 using PuntoReclamo.Application.Common;
 using PuntoReclamo.Application.Contracts;
