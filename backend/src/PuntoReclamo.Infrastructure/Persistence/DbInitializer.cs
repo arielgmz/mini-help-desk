@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PuntoReclamo.Application.Abstractions;
@@ -14,6 +15,7 @@ public sealed class DbInitializer(
     ILogger<DbInitializer> logger)
 {
     private const int MigrationAttempts = 10;
+    private const int LoginFailedErrorNumber = 18456;
     private static readonly TimeSpan MigrationDelay = TimeSpan.FromSeconds(3);
 
     /// <summary>Aplica migraciones; reintenta porque SQL Server en Docker tarda en aceptar conexiones.</summary>
@@ -25,6 +27,15 @@ public sealed class DbInitializer(
             {
                 await db.Database.MigrateAsync(cancellationToken);
                 return;
+            }
+            catch (SqlException ex) when (ex.Number == LoginFailedErrorNumber)
+            {
+                // Credenciales incorrectas no son un fallo transitorio: reintentar solo acumula logins fallidos,
+                // y muchos hostings bloquean la IP de origen por eso.
+                throw new InvalidOperationException(
+                    "SQL Server rechazó el inicio de sesión (error 18456): revise usuario y contraseña en " +
+                    "'ConnectionStrings:DefaultConnection'. No se reintenta para no provocar un bloqueo por intentos fallidos.",
+                    ex);
             }
             catch (Exception ex) when (attempt < MigrationAttempts && !cancellationToken.IsCancellationRequested)
             {
